@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AquaIllumination Checksum Calculator</title>
+</head>
+
+<body>
+<h1>AIP Checksum Calculator</h1>
+<p>
+    Load your AIP file, edit as needed, click Calculate Checksum to update checksum value, then click Save to save your
+    file.
+</p>
+<div>
+    <textarea id="textarea1" rows="25" cols="80"></textarea>
+</div>
+<input accept=".txt,.aip,.xml" id="file-browser" type="file"/>
+<button type="button" id="calcchecksum" class="btn-copy">Calculate Checksum</button>
+<button type="button" id="btn-save">Save</button>
+</body>
+<script>
+    document.getElementById('file-browser').onclick = function () {
+        if (!'FileReader' in window) {
+            alert('Your browser does not support the HTML5 FileReader.');
+            return;
+        }
+        this.value = null;
+        document.getElementById('textarea1').value = '';
+    };
+    document.getElementById('file-browser').onchange = function (event) {
+        var fileToLoad = event.target.files[0];
+
+        if (fileToLoad !== undefined) {
+            var reader = new FileReader();
+            reader.onload = function (fileLoadedEvent) {
+                document.getElementById('textarea1').value = fileLoadedEvent.target.result;
+            };
+            reader.readAsText(fileToLoad, "UTF-8");
+        }
+    };
+
+    document.getElementById('btn-save').onclick = function () {
+        if ('Blob' in window) {
+            var sourcefilename = document.getElementById('file-browser').value;
+            if (sourcefilename.startsWith("C:\\fakepath")) {
+                sourcefilename = sourcefilename.substr(12);
+            }
+            var fileName = prompt('Please enter file name to save', sourcefilename);
+            if (fileName) {
+                var textToWrite = document.getElementById('textarea1').value.replace(/\n/g, '\r\n');
+                var textFileAsBlob = new Blob([textToWrite], {
+                    type: 'text/plain'
+                });
+
+                if (!!window.navigator.msSaveOrOpenBlob) {
+                    window.navigator.msSaveOrOpenBlob(textFileAsBlob, fileName);
+                } else {
+                    var downloadLink = document.createElement("a");
+                    downloadLink.download = fileName;
+                    downloadLink.innerHTML = "Download File";
+                    if ('webkitURL' in window) {
+                        // Chrome allows the link to be clicked without actually adding it to the DOM.
+                        downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+                    } else {
+                        // Firefox requires the link to be added to the DOM before it can be clicked.
+                        downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+                        downloadLink.onclick = destroyClickedElement;
+                        downloadLink.style.display = "none";
+                        document.body.appendChild(downloadLink);
+                    }
+
+                    downloadLink.click();
+                }
+            }
+        } else {
+            alert('Your browser does not support the HTML5 Blob.');
+        }
+    };
+
+    function destroyClickedElement(event) {
+        document.body.removeChild(event.target);
+    }
+
+    document.getElementById('calcchecksum').onclick = function () {
+        var txtval = document.getElementById('textarea1').value;
+        var colorstart = txtval.indexOf("<colors>");
+        var colorend = txtval.indexOf("</colors>") + 9;
+        var chkstart = txtval.indexOf("<checksum>") + 10;
+        var chkend = txtval.indexOf("</checksum>");
+        if (colorstart == -1 || colorend == -1 || chkstart == -1 || chkend == -1) {
+            alert("The AIP file is invalid!");
+            return;
+        }
+        var colortag = txtval.substr(colorstart, (colorend - colorstart));
+        var origchecksum = txtval.substr(chkstart, (chkend - chkstart));
+        var colorxml = colortag.replace(/\s+/g, "");
+        var chk = 0;
+        if (colorxml.length == 0) {
+            return chk
+        }
+        for (var c of colorxml)
+            chk = (((chk << 5) - chk) + c.charCodeAt(0)) & 0xFFFFFFFF;
+        if (chk < 0) {
+            chk = ~chk
+        }
+        alert("checksum is " + chk);
+        txtval = txtval.replace(origchecksum, chk);
+        document.getElementById('textarea1').value = txtval;
+    }
+</script>
+</html>
